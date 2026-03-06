@@ -1,0 +1,44 @@
+[
+  {
+    "incident_id": "SR-P1-110107-973",
+    "verdict": "false_alarm",
+    "notes": "",
+    "timestamp": "2026-03-06T11:02:09.623510"
+  },
+  {
+    "incident_id": "SR-P1-110107-973",
+    "verdict": "correct",
+    "notes": "",
+    "timestamp": "2026-03-06T11:02:11.513262"
+  },
+  {
+    "incident_id": "SR-P1-110107-973",
+    "verdict": "correct",
+    "notes": "",
+    "timestamp": "2026-03-06T11:02:15.106471"
+  },
+  {
+    "incident_id": "SR-P1-110107-973",
+    "verdict": "correct",
+    "notes": "",
+    "timestamp": "2026-03-06T11:02:16.010947"
+  },
+  {
+    "incident_id": "SR-P1-111834-849",
+    "verdict": "correct",
+    "notes": "",
+    "timestamp": "2026-03-06T11:19:27.682459"
+  },
+  {
+    "incident_id": "SR-P1-111656-943",
+    "verdict": "false_alarm",
+    "notes": "",
+    "timestamp": "2026-03-06T11:19:40.501513"
+  },
+  {
+    "incident_id": "SR-P1-110107-973",
+    "verdict": "false_alarm",
+    "notes": "",
+    "timestamp": "2026-03-06T15:01:13.017121"
+  }
+]

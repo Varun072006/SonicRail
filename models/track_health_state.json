@@ -1,0 +1,42 @@
+{
+  "BS-1": {
+    "health": 32.545403049034505,
+    "events": 6,
+    "last_event": "rockfall_landslide"
+  },
+  "BS-2": {
+    "health": 52.455549755576776,
+    "events": 4,
+    "last_event": "train_movement"
+  },
+  "BS-3": {
+    "health": 99.54552017395754,
+    "events": 3,
+    "last_event": "train_movement"
+  },
+  "BS-4": {
+    "health": 43.88020492534813,
+    "events": 4,
+    "last_event": "train_movement"
+  },
+  "BS-5": {
+    "health": 86.30832339199458,
+    "events": 2,
+    "last_event": "track_fracture"
+  },
+  "BS-6": {
+    "health": 93.50187190978387,
+    "events": 3,
+    "last_event": "train_movement"
+  },
+  "BS-7": {
+    "health": 47.27530307975666,
+    "events": 7,
+    "last_event": "train_movement"
+  },
+  "BS-8": {
+    "health": 91.63687416826387,
+    "events": 1,
+    "last_event": "animal_intrusion"
+  }
+}
