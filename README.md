@@ -7,7 +7,7 @@
 
 SonicRail is a next-generation **National Track Safety Intelligence System** that transforms existing railway telecom fiber optic infrastructure into a high-precision Distributed Acoustic Sensing (DAS) network. By leveraging edge AI and deep learning, SonicRail detects, classifies, and alerts operators to rail hazards—such as rockfalls, track fractures, and animal intrusions—in under 2 seconds.
 
-![SonicRail Dashboard](./sonicrail_v2_dashboard_1772899064259.png)
+![SonicRail Dashboard](frontend/src/images/hero_command_center.png)
 
 ---
 
@@ -44,6 +44,32 @@ The system uses a multi-layered approach to ensure high precision and low false-
     -   `animal_intrusion` 🐾
     -   `normal_ambient` 🌬️
 3.  **Context Intelligence**: Filters alerts based on scheduled maintenance or known weather patterns (e.g., suppressing wind noise during storms).
+
+---
+
+## 🖼️ Visual Perspectives
+
+Explore the different layers of the SonicRail Intelligence Suite.
+
+| **System Component** | **Description** |
+| :--- | :--- |
+| **Command Center** | Real-time telemetry, track topology map, and live DAS frequency analysis. |
+| **AI Model Center** | Analytical co-pilot (LLM) for operator support and automated report generation. |
+| **Analytics & Reports** | Historical event distribution, detection accuracy trends, and track stress heatmaps. |
+| **GeoRail Live Map** | Interactive corridor health indexing with block-section level risk overlays. |
+
+### Gallery
+![Command Center](frontend/src/images/hero_command_center.png)
+*Live Telemetry Dashboard*
+
+![AI Model Center](frontend/src/images/ai_model_center.png)
+*AI Co-Pilot & Incident Reporting*
+
+![Analytics Distribution](frontend/src/images/analytics_distribution.png)
+*Historical Data Analysis*
+
+![GeoRail Live Map](frontend/src/images/georail_map.png)
+*Interactive Corridor Risk Mapping*
 
 ---
 

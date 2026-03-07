@@ -1,5 +1,33 @@
 [
   {
+    "incident_id": "SR-P1-221018-111",
+    "timestamp": "22:10:18",
+    "section": "BS-8",
+    "km": 46.2,
+    "class_name": "rockfall_landslide",
+    "class_label": "Rockfall / Landslide",
+    "confidence": 1.0,
+    "severity": "P1_CRITICAL",
+    "action": "EMERGENCY BRAKE (PTC) + Speed Restriction + Alert Dispatch",
+    "escalation": "AUTO-ESCALATED: Divisional Control Room notified & PTC Triggered",
+    "status": "DETECTED",
+    "context": "CLEAR"
+  },
+  {
+    "incident_id": "SR-P1-220545-622",
+    "timestamp": "22:05:45",
+    "section": "BS-5",
+    "km": 28.7,
+    "class_name": "rockfall_landslide",
+    "class_label": "Rockfall / Landslide",
+    "confidence": 0.97,
+    "severity": "P1_CRITICAL",
+    "action": "PENDING OPERATOR CONFIRMATION",
+    "escalation": null,
+    "status": "DETECTED",
+    "context": "CLEAR"
+  },
+  {
     "incident_id": "SR-P1-215410-175",
     "timestamp": "21:54:10",
     "section": "BS-1",
@@ -8,8 +36,8 @@
     "class_label": "Rockfall / Landslide",
     "confidence": 0.92,
     "severity": "P1_CRITICAL",
-    "action": "EMERGENCY BRAKE (PTC) + Speed Restriction + Alert Dispatch",
-    "escalation": "AUTO-ESCALATED: Divisional Control Room notified & PTC Triggered",
+    "action": "PENDING OPERATOR CONFIRMATION",
+    "escalation": null,
     "status": "DETECTED",
     "context": "CLEAR"
   },
