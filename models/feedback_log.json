@@ -1,14 +1,8 @@
 [
   {
-    "incident_id": "SR-P2-142305-892",
+    "incident_id": "SR-P1-214239-163",
     "verdict": "false_alarm",
     "notes": "",
-    "timestamp": "2026-03-07T14:24:54.533979"
-  },
-  {
-    "incident_id": "SR-P2-142305-892",
-    "verdict": "false_alarm",
-    "notes": "",
-    "timestamp": "2026-03-07T14:24:57.169369"
+    "timestamp": "2026-03-07T21:52:16.329690"
   }
 ]

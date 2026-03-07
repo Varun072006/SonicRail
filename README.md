@@ -1,167 +1,133 @@
-# SonicRail : AI-Powered Acoustic Monitoring for Real-Time Railway Hazard Detection
+# 🚆 SonicRail: AI-Powered Acoustic Intelligence for Railway Safety
 
-**National Track Safety Intelligence System — Production-Grade Edition**
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![React 18+](https://img.shields.io/badge/react-18+-61dafb.svg)](https://reactjs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DAS Technology](https://img.shields.io/badge/Technology-Distributed%20Acoustic%20Sensing-orange)](https://en.wikipedia.org/wiki/Distributed_acoustic_sensing)
 
-SonicRail transforms existing railway telecom fiber optic infrastructure into an intelligent distributed acoustic sensing (DAS) network. Using AI-powered signal classification, anomaly detection, and real-time visualization, the system detects track hazards like rockfalls, rail fractures, and animal intrusions in under 2 seconds.
+SonicRail is a next-generation **National Track Safety Intelligence System** that transforms existing railway telecom fiber optic infrastructure into a high-precision Distributed Acoustic Sensing (DAS) network. By leveraging edge AI and deep learning, SonicRail detects, classifies, and alerts operators to rail hazards—such as rockfalls, track fractures, and animal intrusions—in under 2 seconds.
 
-![SonicRail Dashboard](frontend/public/vite.svg)
-
----
-
-## 🎯 Key Features
-
-- **Real-Time Acoustic Sensing**: Processes live audio data (simulating DAS fiber optic signals) to monitor track conditions.
-- **Deep Learning Confidence**: Employs a hybrid CNN + BiLSTM (CRNN) model utilizing Mel Spectrograms alongside classical ML baselines (Random Forest + SVM).
-- **Anomaly Detection Layer**: Utilizes an Isolation Forest to flag out-of-distribution (OOD) unknown events before classification, reducing false positives.
-- **Live Interactive Dashboard**: Built with React and Recharts, featuring a dark-themed, professional telemetry interface.
-- **Advanced Visualizations**:
-  - Live multi-band frequency analyzers with interactive tooltips.
-  - Live Fast Fourier Transform (FFT) spectrograms.
-  - GeoRail Map with active track segment tracking.
-- **Instant Alerting System**: Visual alerts and Web Audio API emergency sirens trigger upon hazard detection via WebSockets.
-- **Self-Learning Loop**: Operators can confirm or flag alerts as false alarms, feeding data back into `feedback_log.json` for future model retraining.
-- **Simulation Mode**: Built-in test scenarios (e.g., Cascade Rockfall, Rail Joint Fracture) to demo system capabilities immediately.
+![SonicRail Dashboard](./sonicrail_v2_dashboard_1772899064259.png)
 
 ---
 
-## 🏗️ System Architecture & Hardware Layer
+## 🌟 Core Value Proposition
 
-SonicRail is designed for real-world deployment across hundreds of kilometers of track, utilizing edge AI and hardware-level signal conversion.
+Railway networks span thousands of kilometers, making physical monitoring impossible. SonicRail solves this by:
+- **Zero New Sensors**: Uses existing fiber optic cables alongside tracks as virtual microphones.
+- **Sub-Second Latency**: Edge-optimized inference for immediate hazard response.
+- **Explainable AI**: Provides spectral analysis and FFT visualization for every detection.
+- **Predictive Maintenance**: Tracks cumulative vibration stress to predict failures before they happen.
 
-### Hardware Layer
-```text
-Railway Track (Vibrations)
-     ↓
-Fiber Optic Cable (Existing Telecom Infrastructure)
-     ↓
-DAS Interrogator (e.g., OptaSense, Fotech)
-     ↓
-Edge AI Device (e.g., NVIDIA Jetson Orin Nano)
-     ↓
-Central Server (SonicRail Core)
-     ↓
-Operator Dashboard & Autonomous Train Control
+---
+
+## 🛠️ Tech Stack & Architecture
+
+### The Hardware Layer
+SonicRail interfaces with DAS Interrogators to monitor track vibrations over 50km+ segments per device.
+```mermaid
+graph TD
+    A[Railway Track Vibrations] -->|Existing Fiber Cable| B[DAS Interrogator]
+    B -->|Raw Acoustic Data| C[Edge Gateway: SonicRail Core]
+    C -->|WebSocket Alerts| D[Central Command Center]
+    C -->|PTC Signal| E[Positive Train Control System]
 ```
 
-### Software Pipeline
-1. **Edge AI Processing**: Instead of sending raw audio over the network, Edge nodes process signals locally, reducing latency and saving bandwidth.
-2. **Signal & Sequence Processing**: Raw data $\rightarrow$ Temporal Sequences & Mel Spectrograms.
-3. **Multi-Sensor Fusion**: Combines DAS data with secondary sources (weather, wheel sensors) to increase alert confidence and context.
-4. **Context-Aware Filter**: Suppresses expected vibrations (e.g., scheduled trains passing) to eliminate false alarms.
-5. **Sequence Classification**: Translates acoustic features over time using temporal transformer models to classify hazards.
-6. **Predictive Maintenance Engine**: Calculates track stress accumulation over time to predict fatigue before a failure occurs.
-7. **Fault-Tolerant Alert Manager**: Evaluates thresholds and can trigger Positive Train Control (PTC) fail-safes.
-8. **Frontend Application**: Real-time telemetry via WebSockets and Historical Analytics dashboards.
+### The AI Pipeline
+The system uses a multi-layered approach to ensure high precision and low false-alarm rates.
+
+1.  **Anomaly Detection Tier**: An **Isolation Forest** model evaluates if the signal is "Normal" (Ambient/Train) or "Out-of-Distribution" (OOD).
+2.  **Classification Tier**: A hybrid **CNN-BiLSTM** (CRNN) processes Mel Spectrograms to distinguish between 5 distinct classes:
+    -   `train_movement` 🚆
+    -   `rockfall_landslide` 🪨
+    -   `track_fracture` ⚡
+    -   `animal_intrusion` 🐾
+    -   `normal_ambient` 🌬️
+3.  **Context Intelligence**: Filters alerts based on scheduled maintenance or known weather patterns (e.g., suppressing wind noise during storms).
 
 ---
 
-## 🚀 Tech Stack
+## 🚀 Key Features
 
-- **Backend**: Python, Flask, Flask-SocketIO (Real-time WebSockets).
-- **Machine Learning**: Scikit-Learn (RF, SVM, Isolation Forest), Librosa (Audio Processing). *(Note: Deep learning modules are structured to scale to PyTorch/TensorFlow)*.
-- **Frontend**: React.js, Vite, Recharts (Telemetry), React-Leaflet (Mapping).
+-   **Command Center**: Real-time telemetry dashboard with multi-band frequency analyzers.
+-   **GeoRail Mapping**: Interactive visualization of track blocks and station health.
+-   **AI Incident Manager**: Review historical alerts, playback acoustic "black box" recordings, and generate LLM-powered incident reports.
+-   **Simulation Suite**: Test the pipeline with pre-defined scenarios like "Cascade Rockfall" or "Rail Joint Fracture".
+-   **Generative AI Assistant**: On-demand analytical chat for operator decision support.
 
 ---
 
-## 🛠️ Installation & Setup
+## ⚙️ Installation & Setup
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 18+
+- **Python**: 3.8 or higher
+- **Node.js**: 18.0 or higher
+- **FFmpeg**: Required for audio processing
 
-### 1. Clone the Repository
-\`\`\`bash
+### 1. Clone & Environment
+```bash
 git clone https://github.com/Varun072006/SonicRail.git
 cd SonicRail
-\`\`\`
-
-### 2. Backend Setup
-Create a virtual environment and install Python dependencies.
-\`\`\`bash
 python -m venv venv
-# On Windows: venv\Scripts\activate
-# On Mac/Linux: source venv/bin/activate
-
+# Windows
+venv\Scripts\activate
+# Linux/Mac
+source venv/bin/activate
 pip install -r requirements.txt
-\`\`\`
+```
 
-### 3. Generate Data and Train Models
-Before starting the server, you need to synthesize the dataset and train the baseline models.
-\`\`\`bash
-# 1. Generate synthesized acoustic dataset
-python generate_dataset.py
+### 2. The One-Command Pipeline
+Before running the dashboard, you must synthesize the DAS dataset and train the local models:
+```bash
+python run_pipeline.py
+```
+*This script automates: `Data Synthesis` → `Feature Extraction` → `Model Training` → `Verification`.*
 
-# 2. Extract features (MFCCs)
-python prepare_training_data.py
+### 3. Launch the Dashboard
+Open two terminals:
 
-# 3. Train the Isolation Forest and Classifiers
-python train.py
-\`\`\`
+**Terminal A (Backend API)**
+```bash
+python api_server.py
+```
 
-### 4. Frontend Setup
-Install the React dependencies.
-\`\`\`bash
+**Terminal B (Frontend UI)**
+```bash
 cd frontend
 npm install
-\`\`\`
-
----
-
-## 🚦 Running the Application
-
-You will need two terminal windows to run the frontend and backend simultaneously.
-
-**Terminal 1: Start the Python WebSocket Server**
-\`\`\`bash
-# From the project root
-python run_pipeline.py
-\`\`\`
-*The backend server will start on `http://127.0.0.1:5000`.*
-
-**Terminal 2: Start the React Development Server**
-\`\`\`bash
-cd frontend
 npm run dev
-\`\`\`
-*The frontend will be accessible at `http://localhost:5173`.*
+```
 
 ---
 
-## 🖥️ Using the Dashboard
+## 🚦 Demonstrating the System
 
-1. Navigate to `http://localhost:5173`.
-2. Go to the **Administration** page to access the Simulation Mode.
-3. Click "▶ Trigger 🪨" under **Cascade Rockfall** or any other scenario.
-4. Immediately navigate to the **Command Center** to view the live frequency spike, FFT spectrum changes, and hear the emergency audio alarm.
-5. Review the model metrics in the **AI Center**.
+To see SonicRail in action without real track data:
+1.  Navigate to `http://localhost:5173`.
+2.  Go to the **Administration** sidebar.
+3.  Trigger a **Cascade Rockfall** simulation.
+4.  Open the **Command Center** to view the live FFT spike and hear the emergency audio siren.
+5.  Check the **Incident Manager** to generate an AI report on the event.
 
 ---
 
 ## 📁 Project Structure
 
-\`\`\`text
+```text
 SonicRail/
-├── data/                    # Generated synthetic audio wave files
-├── frontend/                # React Vite frontend application
-│   ├── src/
-│   │   ├── components/      # Reusable UI cards & Canvas charts
-│   │   ├── pages/           # Dashboard Pages (CommandCenter, AI Center, etc)
-│   │   └── App.jsx          # Main Router & WebSocket listener
-├── models/                  # Serialized .pkl artifacts and JSON states
-├── generate_dataset.py      # Script to synthesize track physics audio
-├── prepare_training_data.py # Script to pull MFCCs from data/ 
-├── train.py                 # Evaluates models and exports the best performer
-├── run_pipeline.py          # Main Flask + WebSocket Server
-├── prediction_engine.py     # Live inference logic bridging SocketIO & Models
-└── requirements.txt         # Python dependencies
-\`\`\`
+├── api_server.py            # Flask + SocketIO Gateway
+├── decision_engine.py       # Context Awareness & Risk protocols
+├── prediction_engine.py     # Live inference bridge
+├── anomaly_detector.py      # Isolation Forest implementation
+├── frontend/                # React Vite Application
+├── data/                    # Synthetic DAS signal storage
+└── models/                  # Serialized ML artifacts (.pkl)
+```
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributing & License
 
-This project is a prototype designed to demonstrate software architecture and signal processing concepts. Feature enhancements, bug reports, and pull requests are highly encouraged to expand the capabilities of this system.
+This system is a prototype designed to showcase advanced signal processing and AI integration in infrastructure. We welcome academic and industrial contributions.
 
-## 📄 License
-
-This project is open-source and available under the standard MIT License.
+**License**: Distributed under the [MIT License](LICENSE).
