@@ -39,6 +39,7 @@ from prediction_engine import PredictionEngine
 from decision_engine import DecisionEngine
 from alert_system import AlertManager
 from demo_mode import DemoEngine
+from ai_agent import ai_agent
 
 # ──── App Setup ────
 app = Flask(__name__)
@@ -60,6 +61,14 @@ audio_clips = {}
 # ──── Feedback log ────
 FEEDBACK_LOG_PATH = os.path.join(MODELS_DIR, "feedback_log.json")
 feedback_log = []
+
+# ──── Admin Settings ────
+ADMIN_SETTINGS = {
+    "sensitivity": 0.75,
+    "thresholds": {"P1_CRITICAL": 0.85, "P2_WARNING": 0.70, "P3_ADVISORY": 0.50},
+    "mode": "AUTO",
+    "sections": {f"BS-{i+1}": True for i in range(8)}
+}
 
 # ──── Try to load detector + anomaly detector ────
 detector = None
@@ -205,8 +214,33 @@ def run_detection():
         except Exception:
             pass
 
+    # ── Apply Admin Settings (Sensitvity & Section Mask & Thresholds) ──
+    # Check Section
+    if not ADMIN_SETTINGS["sections"].get(section["id"], True):
+        # Drop detection silently if disabled
+        return jsonify({"success": True, "suppressed": True, "reason": "Section monitoring disabled"})
+        
+    # Scale Confidence by Sensitivity (baseline is 0.75)
+    conf_multiplier = ADMIN_SETTINGS["sensitivity"] / 0.75
+    pred["confidence"] = min(1.0, pred["confidence"] * conf_multiplier)
+    
     # ── Decision ──
     dec = decision_engine.evaluate(pred, section, km)
+    
+    # Apply Confidence Thresholds
+    target_threshold = ADMIN_SETTINGS["thresholds"].get(dec["severity"], 0.0)
+    if dec["severity"] != "NORMAL" and pred["confidence"] < target_threshold:
+        # Downgrade if it doesn't meet the user-defined threshold
+        dec["severity"] = "NORMAL"
+        dec["action"] = f"Suppressed: Confidence ({pred['confidence']:.2f}) below threshold ({target_threshold})"
+        
+    # Override Mode
+    if ADMIN_SETTINGS["mode"] == "MAINTENANCE":
+        dec["severity"] = "NORMAL"
+        dec["action"] = "Suppressed: MAINTENANCE MODE ACTIVE"
+    elif ADMIN_SETTINGS["mode"] == "MANUAL" and dec["severity"] != "NORMAL":
+        dec["action"] = "PENDING OPERATOR CONFIRMATION"
+        dec["escalation"] = None
 
     # ── Alert ──
     alert = None
@@ -276,6 +310,7 @@ def run_detection():
             "section": dec["section"],
             "km": dec["km"],
             "escalation": dec["escalation"],
+            "context": dec.get("context", "CLEAR"),
         },
         "alert": alert,
         "has_audio": True,
@@ -337,13 +372,16 @@ def submit_feedback():
     feedback_log.append(entry)
     alert_manager.operator_feedback(incident_id, verdict)
 
-    # Persist to file
-    try:
-        os.makedirs(MODELS_DIR, exist_ok=True)
-        with open(FEEDBACK_LOG_PATH, "w") as f:
-            json.dump(feedback_log, f, indent=2)
-    except Exception:
-        pass
+    # Persist to file in background
+    import threading
+    def worker():
+        try:
+            os.makedirs(MODELS_DIR, exist_ok=True)
+            with open(FEEDBACK_LOG_PATH, "w") as f:
+                json.dump(feedback_log, f, indent=2)
+        except Exception:
+            pass
+    threading.Thread(target=worker, daemon=True).start()
 
     return jsonify({"success": True, "total_feedback": len(feedback_log)})
 
@@ -440,6 +478,21 @@ def trigger_simulation():
         dec["severity"] = scenario["severity"]
         dec["action"] = f"SIMULATION: {scenario['description']}"
 
+    # Apply Mode Overrides Even in Simulation
+    if ADMIN_SETTINGS["mode"] == "MAINTENANCE":
+        dec["severity"] = "NORMAL"
+        dec["action"] = "Suppressed: MAINTENANCE MODE ACTIVE"
+    elif ADMIN_SETTINGS["mode"] == "MANUAL" and dec["severity"] != "NORMAL":
+        dec["action"] = "PENDING OPERATOR CONFIRMATION"
+        dec["escalation"] = None
+
+    # Generate mock anomaly
+    anomaly_result = {
+        "is_anomaly": dec["severity"] != "NORMAL",
+        "score": random.uniform(2.5, 4.8) if dec["severity"] != "NORMAL" else random.uniform(0.1, 0.9),
+        "threshold": 1.5
+    }
+
     alert = None
     if dec["severity"] != "NORMAL":
         alert = alert_manager.create_alert(dec)
@@ -490,9 +543,16 @@ def trigger_simulation():
     return jsonify({
         "success": True,
         "scenario": scenario["name"],
-        "prediction": {"class_name": pred["class_name"], "confidence": round(pred["confidence"], 4)},
-        "decision": {"severity": dec["severity"], "incident_id": incident_id},
+        "prediction": {
+            "class_name": pred["class_name"],
+            "class_label": pred["class_label"],
+            "icon": scenario["icon"],
+            "confidence": round(pred["confidence"], 4),
+            "probabilities": pred["probabilities"]
+        },
+        "decision": dec,
         "alert": alert,
+        "anomaly": anomaly_result,
     })
 
 
@@ -560,6 +620,41 @@ def get_maintenance():
 def get_predictive_alerts():
     return jsonify(prediction_engine.get_predictive_alerts())
 
+@app.route("/api/maintenance-stress")
+def get_maintenance_stress():
+    return jsonify(decision_engine.predictive_maintenance.get_maintenance_data())
+
+# --- NEW GENERATIVE AI ENDPOINTS ---
+
+@app.route('/api/ai/chat', methods=['POST'])
+def ai_chat():
+    data = request.json
+    user_message = data.get('message')
+    if not user_message:
+        return jsonify({'error': 'Message is required'}), 400
+        
+    stress_data = decision_engine.predictive_maintenance.track_stress
+    engine_state = {
+        "overall_health": prediction_engine.get_overall_health(),
+        "active_alerts": alert_manager.get_unread_count(),
+        "protocol_mode": decision_engine.protocol_mode,
+        "recent_incidents": list(events_log)[:5]
+    }
+    response_text = ai_agent.chat(user_message, engine_state, stress_data)
+    
+    return jsonify({'response': response_text})
+
+@app.route('/api/ai/generate-report', methods=['POST'])
+def generate_report():
+    data = request.json
+    incident = data.get('incident')
+    if not incident:
+        return jsonify({'error': 'Incident data is required'}), 400
+        
+    stress_data = decision_engine.predictive_maintenance.track_stress
+    report_text = ai_agent.generate_incident_report(incident, stress_data)
+    
+    return jsonify({'report': report_text})
 
 @app.route("/api/trends")
 def get_trends():
@@ -584,10 +679,16 @@ def acknowledge_incident(incident_id):
     return jsonify({"success": ok})
 
 
+@app.route("/api/incident/<incident_id>/investigate", methods=["POST"])
+def investigate_incident(incident_id):
+    ok = decision_engine.investigate_incident(incident_id)
+    return jsonify({"success": ok})
+
+
 @app.route("/api/incident/<incident_id>/resolve", methods=["POST"])
 def resolve_incident(incident_id):
-    notes = request.json.get("notes", "") if request.json else ""
-    ok = decision_engine.resolve_incident(incident_id, notes)
+    resolution_data = request.json if request.json else {}
+    ok = decision_engine.resolve_incident(incident_id, resolution_data)
     return jsonify({"success": ok})
 
 
@@ -673,7 +774,7 @@ def get_model_metrics():
 
 
 # ──────────────────────────────────────────────────────────────
-# CONFIG
+# CONFIG & ADMIN SETTINGS
 # ──────────────────────────────────────────────────────────────
 @app.route("/api/config")
 def get_config():
@@ -685,6 +786,23 @@ def get_config():
         "incident_statuses": INCIDENT_STATUSES,
         "simulation_scenarios": list(SIMULATION_SCENARIOS.keys()),
     })
+
+@app.route("/api/admin/settings", methods=["GET", "POST"])
+def admin_settings():
+    if request.method == "POST":
+        data = request.json
+        if "sensitivity" in data:
+            ADMIN_SETTINGS["sensitivity"] = float(data["sensitivity"])
+        if "thresholds" in data:
+            ADMIN_SETTINGS["thresholds"].update(data["thresholds"])
+        if "mode" in data:
+            ADMIN_SETTINGS["mode"] = data["mode"]
+            decision_engine.protocol_mode = data["mode"]
+        if "sections" in data:
+            ADMIN_SETTINGS["sections"].update(data["sections"])
+        return jsonify({"success": True, "settings": ADMIN_SETTINGS})
+    
+    return jsonify(ADMIN_SETTINGS)
 
 
 # ──────────────────────────────────────────────────────────────

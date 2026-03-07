@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { KpiCard, AlertCard, SectionHeader, ProbabilityBar } from '../components/UIComponents';
 import AdvancedMap from '../components/AdvancedMap';
@@ -26,6 +26,7 @@ const SIMULATION_SCENARIOS = [
 export default function CommandCenter({ api }) {
     const [detection, setDetection] = useState(null);
     const [events, setEvents] = useState([]);
+    const [selectedEvent, setSelectedEvent] = useState(null);
     const [kpis, setKpis] = useState(null);
     const [loading, setLoading] = useState(false);
     const [wsAlerts, setWsAlerts] = useState([]);
@@ -80,7 +81,7 @@ export default function CommandCenter({ api }) {
     };
 
     // Audio playback via Web Audio API
-    const playAudio = async (incidentId) => {
+    const playAudio = useCallback(async (incidentId) => {
         try {
             const res = await fetch(`${api}/audio/${incidentId}`);
             const { audio_b64 } = await res.json();
@@ -98,7 +99,7 @@ export default function CommandCenter({ api }) {
         } catch (e) {
             console.error('Audio playback failed:', e);
         }
-    };
+    }, [api]);
 
     const healthColor = (v) => v >= 80 ? 'green' : v >= 50 ? 'amber' : 'red';
 
@@ -175,10 +176,74 @@ export default function CommandCenter({ api }) {
                 )}
             </div>
 
-            {/* Live Track Infrastructure Map */}
+            {/* Live Track Infrastructure Map & Frequency Analyzer */}
             <div style={{ marginBottom: 24 }}>
-                <AdvancedMap api={api} events={events} />
+                <AdvancedMap api={api} events={events} onEventClick={setSelectedEvent} />
             </div>
+
+            {/* Event Details Modal */}
+            {selectedEvent && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+                    background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div style={{
+                        background: '#ffffff', width: '450px', borderRadius: '12px',
+                        border: `2px solid ${selectedEvent.severity === 'P1_CRITICAL' ? '#ef4444' : '#f59e0b'}`,
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            background: selectedEvent.severity === 'P1_CRITICAL' ? '#fef2f2' : '#fffbeb',
+                            borderBottom: '1px solid #e2e8f0'
+                        }}>
+                            <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.1rem', letterSpacing: '0.5px' }}>
+                                🚨 ANOMALY DETECTED
+                            </div>
+                            <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: '0.8rem', borderColor: '#cbd5e1', color: '#475569' }} onClick={() => setSelectedEvent(null)}>Close</button>
+                        </div>
+                        <div style={{ padding: '24px' }}>
+                            <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Event Classification</div>
+                                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: selectedEvent.severity === 'P1_CRITICAL' ? '#dc2626' : '#d97706' }}>
+                                    {(selectedEvent.event || selectedEvent.class_name || 'Unknown').replace(/_/g, ' ').toUpperCase()}
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Severity</div>
+                                    <div style={{
+                                        display: 'inline-block', padding: '4px 8px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 700,
+                                        background: selectedEvent.severity === 'P1_CRITICAL' ? '#fee2e2' : '#fef3c7',
+                                        color: selectedEvent.severity === 'P1_CRITICAL' ? '#dc2626' : '#d97706',
+                                        border: `1px solid ${selectedEvent.severity === 'P1_CRITICAL' ? '#fca5a5' : '#fcd34d'}`
+                                    }}>
+                                        {selectedEvent.severity?.replace('_', ' ')}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Confidence</div>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b' }}>
+                                        {((selectedEvent.confidence || 0) * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Location:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>KM {selectedEvent.km} ({selectedEvent.section})</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Timestamp:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>{selectedEvent.time}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Main Layout */}
             <div className="grid-2">
@@ -212,7 +277,9 @@ export default function CommandCenter({ api }) {
                             title={`🔴 LIVE: ${ws.prediction?.class_label || ws.prediction?.class_name}`}
                             detail={`${ws.decision?.section} KM ${ws.decision?.km}`}
                             subDetail={ws.decision?.incident_id}
-                            active={true} />
+                            active={true}
+                            onClick={() => setSelectedEvent({ ...ws.decision, event: ws.prediction?.class_label, confidence: ws.prediction?.confidence })}
+                        />
                     ))}
                     {events.filter(e => e.severity !== 'NORMAL').length > 0 ? (
                         events.filter(e => e.severity !== 'NORMAL').slice(0, 4).map((e, i) => (
@@ -221,7 +288,9 @@ export default function CommandCenter({ api }) {
                                 title={`${e.severity?.replace('_', ' ')} — ${e.action}`}
                                 detail={`${e.section} KM ${e.km}`}
                                 subDetail={e.incident_id}
-                                active={true} />
+                                active={true}
+                                onClick={() => setSelectedEvent(e)}
+                            />
                         ))
                     ) : wsAlerts.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: 30, color: 'var(--green-500)' }}>
@@ -244,7 +313,11 @@ export default function CommandCenter({ api }) {
                         </thead>
                         <tbody>
                             {events.slice(0, 10).map((e, i) => (
-                                <tr key={i}>
+                                <tr key={i}
+                                    style={{ cursor: 'pointer', background: e.severity === 'P1_CRITICAL' ? 'rgba(239, 68, 68, 0.1)' : 'transparent' }}
+                                    onClick={() => setSelectedEvent(e)}
+                                    className="hover-highlight"
+                                >
                                     <td>{e.section}</td>
                                     <td>{e.km}</td>
                                     <td><span className={`badge ${e.severity?.includes('P1') ? 'p1' : e.severity?.includes('P2') ? 'p2' : e.severity?.includes('P3') ? 'p3' : 'normal'}`}>{e.severity?.replace('_', ' ')}</span></td>
@@ -255,7 +328,10 @@ export default function CommandCenter({ api }) {
                                             <button
                                                 className="btn btn-outline"
                                                 style={{ fontSize: '0.68rem', padding: '2px 8px' }}
-                                                onClick={() => playAudio(e.incident_id)}
+                                                onClick={(ev) => {
+                                                    ev.stopPropagation(); // prevent row click from opening modal if play button is clicked
+                                                    playAudio(e.incident_id);
+                                                }}
                                             >▶ Play</button>
                                         )}
                                     </td>
@@ -272,7 +348,7 @@ export default function CommandCenter({ api }) {
 
 
 /* ──── Canvas Waveform ──── */
-function WaveCanvas({ data, color = '#2b7fff', height = 110 }) {
+const WaveCanvas = memo(function WaveCanvas({ data, color = '#2b7fff', height = 110 }) {
     const ref = useRef(null);
     useEffect(() => {
         const canvas = ref.current;
@@ -294,10 +370,10 @@ function WaveCanvas({ data, color = '#2b7fff', height = 110 }) {
         ctx.stroke();
     }, [data, color]);
     return <canvas ref={ref} width={640} height={height} style={{ width: '100%', height, display: 'block' }} />;
-}
+});
 
 /* ──── Canvas FFT Spectrum ──── */
-function FftCanvas({ freqs, mags, color = '#00a8cc', height = 100 }) {
+const FftCanvas = memo(function FftCanvas({ freqs, mags, color = '#00a8cc', height = 100 }) {
     const ref = useRef(null);
     useEffect(() => {
         const canvas = ref.current;
@@ -326,10 +402,10 @@ function FftCanvas({ freqs, mags, color = '#00a8cc', height = 100 }) {
         });
     }, [freqs, mags, color]);
     return <canvas ref={ref} width={640} height={height} style={{ width: '100%', height, display: 'block' }} />;
-}
+});
 
 /* ──── Signal Panel Sub-component ──── */
-function SignalPanel({ detection, onPlayAudio }) {
+const SignalPanel = memo(function SignalPanel({ detection, onPlayAudio }) {
     const { prediction, signal, decision, anomaly } = detection;
     const waveData = signal?.waveform || [];
     const fftFreqs = signal?.fft_freqs || [];
@@ -391,29 +467,44 @@ function SignalPanel({ detection, onPlayAudio }) {
 
             {/* Dark signal charts container */}
             <div style={{
-                background: '#0B141E',
-                border: isHazard ? '1px solid #ef4444' : '1px solid transparent',
-                borderRadius: 8, padding: '20px 24px', marginBottom: 14,
-                boxShadow: isHazard ? '0 0 25px rgba(239, 68, 68, 0.3)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                transition: 'all 0.3s ease'
+                background: '#040d18', // Exactly matching AdvancedMap canvas bg
+                border: isHazard ? '1px solid #ef4444' : '1px solid #1e3a5f',
+                borderRadius: 6,
+                padding: '16px 16px 12px',
+                marginBottom: 14,
+                boxShadow: isHazard ? '0 0 15px rgba(239, 68, 68, 0.2)' : 'none',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden'
             }} className={isHazard ? 'emergency-pulse' : ''}>
+
                 {/* Waveform */}
-                <div style={{ marginBottom: 20 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', marginBottom: 12 }}>
-                        <span style={{ fontSize: '0.8rem', color: '#4B6680' }}>Waveform</span>
-                        <span style={{ color: isHazard ? '#ff3b30' : '#00FF7F', fontSize: '0.8rem', fontWeight: 600 }}>
-                            {isHazard ? '⚡ Disturbance' : '✓ Nominal'}
-                        </span>
+                <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', letterSpacing: 1, fontFamily: 'monospace' }}>WAVEFORM</span>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                padding: '2px 7px', borderRadius: 10,
+                                background: isHazard ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                                border: isHazard ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(16,185,129,0.4)',
+                                fontSize: '0.58rem', color: isHazard ? '#f87171' : '#10b981', fontWeight: 600,
+                            }}>
+                                {isHazard && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', display: 'inline-block', boxShadow: '0 0 6px #ef4444' }} />}
+                                {isHazard ? '⚡ Disturbance' : '✓ Nominal'}
+                            </span>
+                        </div>
                     </div>
-                    <WaveCanvas data={waveData} color={isHazard ? '#ff3b30' : '#2b7fff'} height={110} />
+                    <WaveCanvas data={waveData} color={isHazard ? '#ef4444' : '#3b82f6'} height={110} />
                 </div>
+
                 {/* FFT */}
                 <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', marginBottom: 12 }}>
-                        <span style={{ fontSize: '0.8rem', color: '#4B6680' }}>FFT Spectrum</span>
-                        <span style={{ fontSize: '0.75rem', color: '#314457' }}>0 Hz → 8000 Hz</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', letterSpacing: 1, fontFamily: 'monospace' }}>FFT SPECTRUM</span>
+                        <span style={{ fontSize: '0.6rem', color: '#475569', fontFamily: 'monospace' }}>0 Hz → 8000 Hz</span>
                     </div>
-                    <FftCanvas freqs={fftFreqs} mags={fftMags} color={isHazard ? '#ff9500' : '#00a8cc'} height={100} />
+                    <FftCanvas freqs={fftFreqs} mags={fftMags} color={isHazard ? '#f59e0b' : '#3b82f6'} height={100} />
                 </div>
             </div>
 
@@ -461,6 +552,6 @@ function SignalPanel({ detection, onPlayAudio }) {
                     `
                 }} />
             </div>
-        </div>
+        </div >
     );
-}
+});

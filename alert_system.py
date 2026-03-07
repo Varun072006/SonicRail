@@ -12,6 +12,26 @@ class AlertManager:
         self._id_counter = 0
         self._feedback_map = {}   # incident_id → verdict
 
+    def trigger_ptc_stop(self, decision):
+        # Emergency Train Control Integration (PTC = Positive Train Control)
+        # In a real system, this sends an autonomous braking command to the train.
+        self._id_counter += 1
+        ptc_alert = {
+            "id": self._id_counter,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "severity": "P1_CRITICAL",
+            "tier_label": "PTC SYSTEM OVERRIDE",
+            "response": "Autonomous Emergency Brake applied to approaching trains.",
+            "section": decision.get("section"),
+            "km": decision.get("km"),
+            "action": "TRAINS HALTED AUTOMATICALLY",
+            "incident_id": decision.get("incident_id") + "-PTC",
+            "acknowledged": False,
+            "feedback": None,
+        }
+        self.alerts.insert(0, ptc_alert)
+        return ptc_alert
+
     def create_alert(self, decision):
         self._id_counter += 1
         severity = decision.get("severity", "NORMAL")
@@ -30,6 +50,11 @@ class AlertManager:
             "feedback": None,           # "correct" | "false_alarm"
         }
         self.alerts.insert(0, alert)
+        
+        # 8. Emergency Train Control integration
+        if severity == "P1_CRITICAL":
+            self.trigger_ptc_stop(decision)
+            
         return alert
 
     def acknowledge(self, alert_id):

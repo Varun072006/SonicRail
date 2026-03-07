@@ -18,6 +18,7 @@ class Detector:
     def __init__(self):
         model_path = os.path.join(MODELS_DIR, "sonic_rail_model.pkl")
         self.classifier = None
+        self._audio_cache = {}
         if os.path.exists(model_path):
             try:
                 self.classifier = joblib.load(model_path)
@@ -45,8 +46,13 @@ class Detector:
         filepath = os.path.join(cls_dir, random.choice(files))
 
         try:
-            signal = load_audio(filepath, sr=SAMPLE_RATE)
-            signal = normalize_signal(signal)
+            if filepath in self._audio_cache:
+                signal = self._audio_cache[filepath]
+            else:
+                signal = load_audio(filepath, sr=SAMPLE_RATE)
+                signal = normalize_signal(signal)
+                self._audio_cache[filepath] = signal
+
             features = extract_features(signal, SAMPLE_RATE)
 
             pred = self.classifier.predict(features)

@@ -41,12 +41,15 @@ class PredictionEngine:
                 pass
 
     def _save_state(self):
-        try:
-            os.makedirs(MODELS_DIR, exist_ok=True)
-            with open(STATE_PATH, "w") as f:
-                json.dump(self.section_health, f, indent=2)
-        except Exception:
-            pass
+        import threading
+        def worker():
+            try:
+                os.makedirs(MODELS_DIR, exist_ok=True)
+                with open(STATE_PATH, "w") as f:
+                    json.dump(self.section_health, f, indent=2)
+            except Exception:
+                pass
+        threading.Thread(target=worker, daemon=True).start()
 
     # ──────────────────────────────────────────────────────────
     # Event ingestion
@@ -79,8 +82,8 @@ class PredictionEngine:
         # Small noise to simulate environmental variation
         noise = random.gauss(0, 1.0)
 
-        # Natural recovery over time (0.5 per event if section is clear)
-        recovery = 0.5 if sev == "NORMAL" else 0.0
+        # Natural recovery over time (5.0 per event if section is clear)
+        recovery = 5.0 if sev == "NORMAL" else 0.0
 
         total_change = -severity_penalty - rockfall_penalty - freq_penalty + recovery + noise
 

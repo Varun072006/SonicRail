@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 // ──── DAS Frequency Analyser Canvas ────────────────────────────────────────
 // Multi-colored waveform chart with spike detection + annotations + interactive tooltips
-function FrequencyAnalyserCanvas({ events }) {
+function FrequencyAnalyserCanvas({ events, onEventClick }) {
     const canvasRef = useRef(null);
     const frameRef = useRef(null);
     const offsetRef = useRef(0);
+    const hoveredSpikeRef = useRef(null);
     const [hoverPos, setHoverPos] = useState(null);
 
     // Seeded random so traces look stable between renders
@@ -64,6 +65,7 @@ function FrequencyAnalyserCanvas({ events }) {
         // Pre-build spike positions from hazards or random seeds
         const spikes = hazards.length > 0
             ? hazards.map((e, i) => ({
+                _rawEvent: e,
                 km: e.km ?? (10 + i * 12),
                 amp: 500 + Math.random() * 350,
                 label: (e.event || e.class_name || 'Spike').replace(/_/g, ' '),
@@ -254,6 +256,7 @@ function FrequencyAnalyserCanvas({ events }) {
 
             // ── Interactive Hover Tooltip ──────────────────────────
             if (hoveredSpike) {
+                hoveredSpikeRef.current = hoveredSpike;
                 const hx = toX(hoveredSpike.km);
                 const hy = toY(hoveredSpike.amp * 0.85);
 
@@ -288,6 +291,8 @@ function FrequencyAnalyserCanvas({ events }) {
 
                 ctx.fillStyle = '#94a3b8';
                 ctx.fillText(`Disturbance Peak: ${Math.round(hoveredSpike.amp)} μm / m`, tx + 10, ty + 42);
+            } else {
+                hoveredSpikeRef.current = null;
             }
 
             // ── Scan-line (animated vertical cursor) ───────────────
@@ -332,9 +337,10 @@ function FrequencyAnalyserCanvas({ events }) {
                 ref={canvasRef}
                 width={680}
                 height={220}
-                style={{ width: '100%', height: '100%', display: 'block', cursor: hoverPos ? 'crosshair' : 'default' }}
+                style={{ width: '100%', height: '100%', display: 'block', cursor: hoverPos && hoveredSpikeRef.current ? 'pointer' : 'default' }}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
+                onClick={() => hoveredSpikeRef.current && onEventClick && onEventClick(hoveredSpikeRef.current._rawEvent)}
             />
         </div>
     );
@@ -342,7 +348,7 @@ function FrequencyAnalyserCanvas({ events }) {
 
 
 
-export default function AdvancedMap({ api, events }) {
+export default function AdvancedMap({ api, events, onEventClick }) {
     const [health, setHealth] = useState(null);
     const canvasRef = useRef(null);
 
@@ -442,19 +448,23 @@ export default function AdvancedMap({ api, events }) {
 
     // Re-evaluate positions based on exact Bezier path is complex, 
     // we will use straight segmented polylines with rounded joints for absolute precision.
+    // Generate a perfectly smooth sinusoidal track layout
     const precisePathPoints = [];
-    for (let i = 0; i <= 50; i++) {
+    for (let i = 0; i <= 50; i += 0.5) { // Higher resolution
         let x = 50 + (i / 50) * 700;
-        let y = 150 + Math.sin(i * 0.15) * 60;
+        let y = 140 + Math.sin(i * 0.12) * 80;
         precisePathPoints.push({ km: i, x, y });
     }
 
     const getPrecisePos = (km) => {
-        const floor = Math.floor(km);
-        const ceil = Math.ceil(km);
-        if (floor === ceil || ceil > 50) return precisePathPoints[Math.min(floor, 50)];
-        const p1 = precisePathPoints[floor];
-        const p2 = precisePathPoints[ceil];
+        const floor = Math.floor(km * 2) / 2;
+        const ceil = Math.ceil(km * 2) / 2;
+        if (floor === ceil || ceil > 50) {
+            const index = precisePathPoints.findIndex(p => p.km === floor);
+            return precisePathPoints[index > -1 ? index : precisePathPoints.length - 1];
+        }
+        const p1 = precisePathPoints.find(p => p.km === floor) || precisePathPoints[0];
+        const p2 = precisePathPoints.find(p => p.km === ceil) || precisePathPoints[precisePathPoints.length - 1];
         const t = km - floor;
         return {
             x: p1.x + (p2.x - p1.x) * t,
@@ -462,7 +472,16 @@ export default function AdvancedMap({ api, events }) {
         };
     };
 
-    const dPrecisePath = "M " + precisePathPoints.map(p => `${p.x} ${p.y}`).join(" L ");
+    // Construct a smooth SVG cubic bezier path through the points
+    const drawSmoothPath = (points) => {
+        if (!points.length) return "";
+        let path = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) {
+            path += ` L ${points[i].x} ${points[i].y}`; // At 0.5 res, lines look rounded
+        }
+        return path;
+    };
+    const dPrecisePath = drawSmoothPath(precisePathPoints);
 
     return (
         <div style={{
@@ -514,19 +533,23 @@ export default function AdvancedMap({ api, events }) {
                             </filter>
                         </defs>
 
-                        {/* Track Line */}
-                        <path d={dPrecisePath} fill="none" stroke="url(#trackGrad)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" filter="url(#glow)" />
-                        <path d={dPrecisePath} fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+                        {/* Neon Track Line */}
+                        {/* 1. Underlying large glow */}
+                        <path d={dPrecisePath} fill="none" stroke="#0ea5e9" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" filter="url(#glow)" />
+                        {/* 2. Core bright trace */}
+                        <path d={dPrecisePath} fill="none" stroke="url(#trackGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                        {/* 3. Center white highlight */}
+                        <path d={dPrecisePath} fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
 
                         {/* Stations */}
                         {health.stations.map(st => {
                             const pos = getPrecisePos(st.km);
                             return (
                                 <g key={st.code} transform={`translate(${pos.x}, ${pos.y})`}>
-                                    <circle r="8" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" filter="url(#glow)" />
+                                    <circle r="9" fill="#0f172a" stroke="#0ea5e9" strokeWidth="3" filter="url(#glow)" />
                                     <circle r="3" fill="#fff" />
-                                    <text y="-18" x="0" textAnchor="middle" fill="#cbd5e1" fontSize="11" fontWeight="600" letterSpacing="0.5">{st.name.toUpperCase()}</text>
-                                    <text y="-6" x="0" textAnchor="middle" fill="#64748b" fontSize="9">KM {st.km}</text>
+                                    <text y="-22" x="0" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="800" letterSpacing="0.5">{st.name.toUpperCase()}</text>
+                                    <text y="-10" x="0" textAnchor="middle" fill="#94a3b8" fontSize="9">KM {st.km}</text>
                                 </g>
                             );
                         })}
@@ -539,15 +562,21 @@ export default function AdvancedMap({ api, events }) {
                             const color = e.severity === 'P1_CRITICAL' ? '#ef4444' : '#f59e0b';
 
                             return (
-                                <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                                <g key={i}
+                                    transform={`translate(${pos.x}, ${pos.y})`}
+                                    onClick={() => isHazard && onEventClick && onEventClick(e)}
+                                    style={{ cursor: isHazard ? 'pointer' : 'default' }}>
                                     {isHazard ? (
                                         <>
-                                            <circle r="25" fill={color} opacity="0.2">
-                                                <animate attributeName="r" values="10; 40" dur="1.5s" repeatCount="indefinite" />
-                                                <animate attributeName="opacity" values="0.8; 0" dur="1.5s" repeatCount="indefinite" />
+                                            <circle r="26" fill={color} opacity="0.2">
+                                                <animate attributeName="r" values="8; 40; 8" dur="2s" repeatCount="indefinite" />
+                                                <animate attributeName="opacity" values="0.6; 0; 0.6" dur="2s" repeatCount="indefinite" />
                                             </circle>
-                                            <circle r="12" fill={color} stroke="#fff" strokeWidth="2" filter="url(#glow)" />
-                                            <text y="-25" textAnchor="middle" fill={color} fontSize="12" fontWeight="700" filter="url(#glow)">{(e.class_label || e.class_name || 'UNKNOWN').toUpperCase()}</text>
+                                            <circle r="20" fill="none" stroke={color} strokeWidth="2" opacity="0.8">
+                                                <animate attributeName="r" values="8; 25; 8" dur="1s" repeatCount="indefinite" />
+                                            </circle>
+                                            <circle r="12" fill={color} stroke="#fff" strokeWidth="2.5" filter="url(#glow)" />
+                                            <text y="-28" x="20" textAnchor="middle" fill={color} fontSize="14" fontWeight="800" filter="url(#glow)" letterSpacing="0.5">{(e.class_label || e.class_name || 'UNKNOWN').toUpperCase()}</text>
                                         </>
                                     ) : isTrain ? (
                                         <g>
@@ -596,7 +625,7 @@ export default function AdvancedMap({ api, events }) {
                     </div>
 
                     {/* Canvas chart area */}
-                    <FrequencyAnalyserCanvas events={events} />
+                    <FrequencyAnalyserCanvas events={events} onEventClick={onEventClick} />
 
                     {/* Legend */}
                     <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>

@@ -11,6 +11,12 @@ export default function IncidentManager({ api }) {
     const [fbStats, setFbStats] = useState(null);
     const [submitting, setSubmitting] = useState({});
 
+    // Modal states
+    const [resolvingId, setResolvingId] = useState(null);
+    const [resolutionData, setResolutionData] = useState({ resolver: '', action: '', condition: '', notes: '' });
+
+    const [viewingInc, setViewingInc] = useState(null);
+
     const loadData = () => {
         fetch(`${api}/incidents`).then(r => r.json()).then(setData).catch(console.error);
         fetch(`${api}/feedback/stats`).then(r => r.json()).then(setFbStats).catch(console.error);
@@ -23,12 +29,21 @@ export default function IncidentManager({ api }) {
         loadData();
     };
 
-    const resolve = async (id) => {
-        const notes = prompt('Resolution notes (optional):');
-        await fetch(`${api}/incident/${id}/resolve`, {
+    const investigate = async (id) => {
+        await fetch(`${api}/incident/${id}/investigate`, { method: 'POST' });
+        loadData();
+    };
+
+    const resolve = async () => {
+        if (!resolutionData.resolver || !resolutionData.action) {
+            alert("Resolver Name and Action required."); return;
+        }
+        await fetch(`${api}/incident/${resolvingId}/resolve`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notes: notes || '' }),
+            body: JSON.stringify(resolutionData),
         });
+        setResolvingId(null);
+        setResolutionData({ resolver: '', action: '', condition: '', notes: '' });
         loadData();
     };
 
@@ -135,17 +150,111 @@ export default function IncidentManager({ api }) {
                                         </button>
                                     </div>
 
+                                    {/* Action Buttons based on Status */}
                                     {inc.status === 'DETECTED' && (
-                                        <button className="btn btn-outline" style={{ marginTop: 4, padding: '3px 8px', fontSize: '0.68rem', width: '100%' }}
-                                            onClick={() => acknowledge(inc.incident_id)}>
-                                            ✅ Acknowledge
+                                        <button className="btn btn-outline" style={{ marginTop: 8, padding: '4px 8px', fontSize: '0.72rem', width: '100%', borderColor: 'var(--amber-500)', color: 'var(--amber-600)' }}
+                                            onClick={(e) => { e.stopPropagation(); acknowledge(inc.incident_id); }}>
+                                            ⚠️ Acknowledge
                                         </button>
                                     )}
-                                    {inc.status !== 'RESOLVED' && (
-                                        <button className="btn btn-success" style={{ marginTop: 4, padding: '3px 8px', fontSize: '0.68rem', width: '100%' }}
-                                            onClick={() => resolve(inc.incident_id)}>
-                                            ✓ Resolve
+                                    {inc.status === 'ACKNOWLEDGED' && (
+                                        <button className="btn btn-primary" style={{ marginTop: 8, padding: '4px 8px', fontSize: '0.72rem', width: '100%', background: 'var(--blue-500)', color: 'white', border: 'none' }}
+                                            onClick={(e) => { e.stopPropagation(); investigate(inc.incident_id); }}>
+                                            🔍 Investigate
                                         </button>
+                                    )}
+                                    {inc.status === 'INVESTIGATING' && (
+                                        <button className="btn btn-success" style={{ marginTop: 8, padding: '4px 8px', fontSize: '0.72rem', width: '100%' }}
+                                            onClick={(e) => { e.stopPropagation(); setResolvingId(inc.incident_id); }}>
+                                            ✓ Mark Resolved
+                                        </button>
+                                    )}
+                                    {inc.status === 'RESOLVED' && (
+                                        <div style={{ marginTop: 8, fontSize: '0.7rem', color: 'var(--green-600)', fontWeight: 600 }}>
+                                            Resolved by: {inc.resolver_name || 'Unknown'}
+                                        </div>
+                                    )}
+
+                                    <button className="btn btn-outline" style={{ marginTop: 4, padding: '2px 8px', fontSize: '0.65rem', width: '100%', opacity: 0.6 }}
+                                        onClick={() => setViewingInc(inc)}>📝 Details</button>
+                                    {/* Modal: Resolve Incident */}
+                                    {resolvingId && (
+                                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+                                            <div className="card" style={{ width: 400, maxWidth: '90%' }}>
+                                                <div style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 16 }}>Resolve Incident {resolvingId}</div>
+
+                                                <div style={{ marginBottom: 12 }}>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Resolver Name</label>
+                                                    <input className="form-input" value={resolutionData.resolver} onChange={e => setResolutionData({ ...resolutionData, resolver: e.target.value })} placeholder="e.g. John Doe (Patrol Unit A)" />
+                                                </div>
+                                                <div style={{ marginBottom: 12 }}>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Action Taken</label>
+                                                    <textarea className="form-input" style={{ minHeight: 60 }} value={resolutionData.action} onChange={e => setResolutionData({ ...resolutionData, action: e.target.value })} placeholder="What did you do?" />
+                                                </div>
+                                                <div style={{ marginBottom: 12 }}>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Current Condition</label>
+                                                    <input className="form-input" value={resolutionData.condition} onChange={e => setResolutionData({ ...resolutionData, condition: e.target.value })} placeholder="e.g. Track cleared, safe for operations" />
+                                                </div>
+                                                <div style={{ marginBottom: 16 }}>
+                                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Additional Notes (Optional)</label>
+                                                    <input className="form-input" value={resolutionData.notes} onChange={e => setResolutionData({ ...resolutionData, notes: e.target.value })} />
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                                    <button className="btn btn-outline" onClick={() => setResolvingId(null)}>Cancel</button>
+                                                    <button className="btn btn-primary" onClick={resolve}>Resolve Incident</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Modal: Incident Details */}
+                                    {viewingInc && (
+                                        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setViewingInc(null)}>
+                                            <div className="card" style={{ width: 500, maxWidth: '90%' }} onClick={e => e.stopPropagation()}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                                    <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{viewingInc.incident_id}</div>
+                                                    <Badge severity={viewingInc.severity} />
+                                                </div>
+
+                                                <div className="grid-2" style={{ marginBottom: 16 }}>
+                                                    <div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Location</div>
+                                                        <div style={{ fontWeight: 600 }}>{viewingInc.section} • KM {viewingInc.km}</div>
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Event classification</div>
+                                                        <div style={{ fontWeight: 600 }}>{viewingInc.class_label} ({Math.round(viewingInc.confidence * 100)}%)</div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', marginBottom: 16 }}>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8 }}>Timeline</div>
+                                                    <div style={{ fontSize: '0.8rem', marginBottom: 4 }}><b>DETECTED:</b> {viewingInc.timestamp}</div>
+                                                    {viewingInc.acknowledged_at && <div style={{ fontSize: '0.8rem', marginBottom: 4 }}><b>ACKNOWLEDGED:</b> {viewingInc.acknowledged_at}</div>}
+                                                    {viewingInc.investigating_at && <div style={{ fontSize: '0.8rem', marginBottom: 4 }}><b>INVESTIGATING:</b> {viewingInc.investigating_at}</div>}
+                                                    {viewingInc.resolved_at && <div style={{ fontSize: '0.8rem', marginBottom: 4, color: 'var(--green-600)' }}><b>RESOLVED:</b> {viewingInc.resolved_at}</div>}
+                                                </div>
+
+                                                {viewingInc.status === 'RESOLVED' ? (
+                                                    <div style={{ borderLeft: '3px solid var(--green-500)', paddingLeft: '12px', marginBottom: 16 }}>
+                                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--green-600)', marginBottom: 8 }}>Resolution Report</div>
+                                                        <div style={{ fontSize: '0.85rem', marginBottom: 4 }}><b>Resolver:</b> {viewingInc.resolver_name}</div>
+                                                        <div style={{ fontSize: '0.85rem', marginBottom: 4 }}><b>Action Taken:</b> {viewingInc.resolution_action}</div>
+                                                        <div style={{ fontSize: '0.85rem', marginBottom: 4 }}><b>Condition:</b> {viewingInc.current_condition}</div>
+                                                        {viewingInc.resolution_notes && <div style={{ fontSize: '0.85rem', fontStyle: 'italic', marginTop: 8 }}>"{viewingInc.resolution_notes}"</div>}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+                                                        <i>This incident is currently {viewingInc.status}.</i>
+                                                    </div>
+                                                )}
+
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <button className="btn btn-outline" onClick={() => setViewingInc(null)}>Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             );
@@ -170,19 +279,19 @@ export default function IncidentManager({ api }) {
                         </thead>
                         <tbody>
                             {incidents.slice(0, 20).map((inc, i) => (
-                                <tr key={i}>
+                                <tr key={i} onClick={() => setViewingInc(inc)} style={{ cursor: 'pointer' }} className="hover-row">
                                     <td style={{ fontFamily: 'monospace', fontSize: '0.72rem' }}>{inc.incident_id}</td>
                                     <td>{inc.timestamp}</td>
                                     <td>{inc.section}</td>
                                     <td>{inc.class_name?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
                                     <td><Badge severity={inc.severity} /></td>
-                                    <td>{inc.action}</td>
                                     <td><span style={{ color: STATUS_COLORS[inc.status], fontWeight: 600, fontSize: '0.75rem' }}>{inc.status}</span></td>
+                                    <td style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{inc.resolver_name || '—'}</td>
                                     <td>
                                         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green-600)', marginRight: 4 }}
-                                            onClick={() => submitFeedback(inc.incident_id, 'correct')} title="Mark as Correct">✔</button>
+                                            onClick={(e) => { e.stopPropagation(); submitFeedback(inc.incident_id, 'correct'); }} title="Mark as Correct">✔</button>
                                         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red-500)' }}
-                                            onClick={() => submitFeedback(inc.incident_id, 'false_alarm')} title="Mark as False Alarm">✖</button>
+                                            onClick={(e) => { e.stopPropagation(); submitFeedback(inc.incident_id, 'false_alarm'); }} title="Mark as False Alarm">✖</button>
                                     </td>
                                 </tr>
                             ))}

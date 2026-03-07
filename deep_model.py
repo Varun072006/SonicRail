@@ -1,8 +1,8 @@
 """
-SonicRail – Deep Learning Model (CRNN: CNN + BiLSTM)
-Architecture: Mel Spectrogram → CNN → BiLSTM → Dense → Softmax
+SonicRail – Deep Sequence Model 
+Architecture: Mel Spectrogram Sequence → CNN → Temporal Transformer Encoder → Dense → Softmax
 
-This module provides a PyTorch-based CRNN classifier.
+This module provides a PyTorch-based Event Sequence Temporal classifier.
 Falls back gracefully to a stub if PyTorch is not installed.
 
 Usage:
@@ -35,9 +35,9 @@ except ImportError:
 # PyTorch CRNN Architecture (only defined if PyTorch available)
 # ──────────────────────────────────────────────────────────────
 if TORCH_AVAILABLE:
-    class _CRNNNet(nn.Module):
+    class _TemporalTransformerNet(nn.Module):
         """
-        CNN + BiLSTM hybrid for acoustic event classification.
+        CNN + Temporal Transformer for sequence audio event classification.
         Input: (batch, 1, n_mels=64, time=128)
         """
         def __init__(self, n_classes=5, n_mels=64):
@@ -70,21 +70,21 @@ if TORCH_AVAILABLE:
             # After 3x MaxPool2d(2,2) on (64, 128): → (8, 16)
             cnn_out_freq = n_mels // 8     # = 8
             cnn_out_time = 128 // 8        # = 16
-            lstm_input_size = 128 * cnn_out_freq  # 1024
+            sequence_input_size = 128 * cnn_out_freq  # 1024
 
-            # BiLSTM Temporal Encoder
-            self.lstm = nn.LSTM(
-                input_size=lstm_input_size,
-                hidden_size=128,
-                num_layers=2,
-                batch_first=True,
-                bidirectional=True,
+            # 3. Temporal Transformer Encoder (Event Sequence Detection)
+            encoder_layer = nn.TransformerEncoderLayer(
+                d_model=sequence_input_size,
+                nhead=8,
+                dim_feedforward=2048,
                 dropout=0.3,
+                batch_first=True
             )
+            self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=3)
 
             # Classifier head
             self.classifier = nn.Sequential(
-                nn.Linear(256, 128),  # 128 * 2 bidirectional
+                nn.Linear(sequence_input_size, 128),
                 nn.ReLU(),
                 nn.Dropout(0.4),
                 nn.Linear(128, n_classes),
@@ -96,8 +96,8 @@ if TORCH_AVAILABLE:
             B, C, F, T = x.shape
             x = x.permute(0, 3, 1, 2)    # (B, T', C, F')
             x = x.reshape(B, T, C * F)   # (B, T', features)
-            x, _ = self.lstm(x)           # (B, T', 256)
-            x = x[:, -1, :]              # last time step
+            x = self.transformer(x)       # (B, T', 1024)
+            x = x.mean(dim=1)            # Average pooling over sequence
             return self.classifier(x)     # (B, n_classes)
 
 
@@ -116,7 +116,7 @@ class CRNNClassifier:
 
         if TORCH_AVAILABLE:
             self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-            self.net = _CRNNNet(n_classes=n_classes, n_mels=n_mels).to(self.device)
+            self.net = _TemporalTransformerNet(n_classes=n_classes, n_mels=n_mels).to(self.device)
         else:
             self.device = "cpu"
             self.net = None
@@ -235,7 +235,7 @@ class CRNNClassifier:
         self.n_mels = data["n_mels"]
         self.class_names = data["class_names"]
         self.metrics = data.get("metrics", {})
-        self.net = _CRNNNet(n_classes=self.n_classes, n_mels=self.n_mels).to(self.device)
+        self.net = _TemporalTransformerNet(n_classes=self.n_classes, n_mels=self.n_mels).to(self.device)
         self.net.load_state_dict(data["state_dict"])
         self.net.eval()
         self.is_trained = True

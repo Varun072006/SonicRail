@@ -1,26 +1,27 @@
 import { useState, useEffect } from 'react';
 import { SectionHeader } from '../components/UIComponents';
+import { Loader2 } from 'lucide-react';
 
 const SIMULATION_SCENARIOS = [
     {
         id: 'cascade_rockfall',
         icon: '🪨', name: 'Cascade Rockfall',
         desc: 'Multi-point rockfall across adjacent sections — monsoon debris scenario',
-        severity: 'P1 CRITICAL',
+        severity: 'P1_CRITICAL',
         severityColor: 'var(--red-500)',
     },
     {
         id: 'joint_fracture',
         icon: '⚡', name: 'Rail Joint Fracture',
         desc: 'Thermal expansion fracture at km marker — summer heat stress scenario',
-        severity: 'P1 CRITICAL',
+        severity: 'P1_CRITICAL',
         severityColor: 'var(--red-500)',
     },
     {
         id: 'animal_herd',
         icon: '🐾', name: 'Animal Herd Intrusion',
         desc: 'Large animal herd crossing — cattle migration near FDB block',
-        severity: 'P2 WARNING',
+        severity: 'P2_WARNING',
         severityColor: 'var(--amber-500)',
     },
     {
@@ -41,7 +42,7 @@ const SIMULATION_SCENARIOS = [
         id: 'unknown_event',
         icon: '❓', name: 'Unknown Acoustic Event',
         desc: 'Unclassified sound — tests anomaly detection layer for OOD events',
-        severity: 'P3 ADVISORY',
+        severity: 'P3_ADVISORY',
         severityColor: 'var(--blue-500)',
     },
 ];
@@ -49,11 +50,30 @@ const SIMULATION_SCENARIOS = [
 export default function Administration({ api }) {
     const [mode, setMode] = useState('AUTO');
     const [sensitivity, setSensitivity] = useState(0.75);
+    const [thresholds, setThresholds] = useState({
+        P1_CRITICAL: 0.85,
+        P2_WARNING: 0.70,
+        P3_ADVISORY: 0.50
+    });
     const [sections, setSections] = useState(
         Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`BS-${i + 1}`, true]))
     );
+
     const [simResult, setSimResult] = useState(null);
     const [simLoading, setSimLoading] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        fetch(`${api}/admin/settings`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.mode) setMode(data.mode);
+                if (data.sensitivity) setSensitivity(data.sensitivity);
+                if (data.thresholds) setThresholds(data.thresholds);
+                if (data.sections) setSections(data.sections);
+            })
+            .catch(err => console.error("Failed to fetch settings:", err));
+    }, [api]);
 
     const modeDescriptions = {
         AUTO: 'System automatically executes decision protocols (emergency brake, speed restriction) without operator confirmation.',
@@ -62,6 +82,50 @@ export default function Administration({ api }) {
     };
 
     const modeColors = { AUTO: 'var(--green-500)', MANUAL: 'var(--amber-500)', MAINTENANCE: 'var(--blue-500)' };
+
+    const updateRemoteSettings = async (updates) => {
+        try {
+            await fetch(`${api}/admin/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+        } catch (e) {
+            console.error("Failed to update settings", e);
+        }
+    };
+
+    const handleModeChange = (newMode) => {
+        setMode(newMode);
+        updateRemoteSettings({ mode: newMode });
+    };
+
+    const handleSectionChange = (sid, checked) => {
+        const newSections = { ...sections, [sid]: checked };
+        setSections(newSections);
+        updateRemoteSettings({ sections: newSections });
+    };
+
+    const handleThresholdChange = (key, value) => {
+        setThresholds(prev => ({ ...prev, [key]: parseFloat(value) }));
+    };
+
+    const handleSaveDetectionSettings = async () => {
+        setIsSaving(true);
+        await updateRemoteSettings({ sensitivity, thresholds });
+        // small delay for UI UX
+        setTimeout(() => setIsSaving(false), 500);
+    };
+
+    const handleResetDetectionSettings = async () => {
+        const defaults = {
+            sensitivity: 0.75,
+            thresholds: { P1_CRITICAL: 0.85, P2_WARNING: 0.70, P3_ADVISORY: 0.50 }
+        };
+        setSensitivity(defaults.sensitivity);
+        setThresholds(defaults.thresholds);
+        await updateRemoteSettings(defaults);
+    };
 
     const triggerScenario = async (scenarioId) => {
         setSimLoading(scenarioId);
@@ -100,20 +164,23 @@ export default function Administration({ api }) {
 
                     <div style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: 10 }}>Alert Confidence Thresholds</div>
                     {[
-                        { label: 'P1 Critical Threshold', value: 0.85, color: 'var(--red-500)' },
-                        { label: 'P2 Warning Threshold', value: 0.70, color: 'var(--amber-500)' },
-                        { label: 'P3 Advisory Threshold', value: 0.50, color: 'var(--blue-500)' },
-                    ].map((t, i) => (
-                        <div key={i} style={{ marginBottom: 10 }}>
-                            <label style={{ fontSize: '0.75rem', color: t.color, fontWeight: 500 }}>{t.label}: {t.value}</label>
-                            <input type="range" min="0.3" max="1" step="0.05" defaultValue={t.value}
+                        { key: 'P1_CRITICAL', label: 'P1 Critical Threshold', color: 'var(--red-500)' },
+                        { key: 'P2_WARNING', label: 'P2 Warning Threshold', color: 'var(--amber-500)' },
+                        { key: 'P3_ADVISORY', label: 'P3 Advisory Threshold', color: 'var(--blue-500)' },
+                    ].map((t) => (
+                        <div key={t.key} style={{ marginBottom: 10 }}>
+                            <label style={{ fontSize: '0.75rem', color: t.color, fontWeight: 500 }}>{t.label}: {thresholds[t.key]}</label>
+                            <input type="range" min="0.3" max="1" step="0.05" value={thresholds[t.key]}
+                                onChange={(e) => handleThresholdChange(t.key, e.target.value)}
                                 style={{ width: '100%', accentColor: t.color }} />
                         </div>
                     ))}
 
                     <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                        <button className="btn btn-primary" onClick={() => alert('Settings saved!')}>💾 Save Settings</button>
-                        <button className="btn btn-outline" onClick={() => { setSensitivity(0.75); alert('Settings reset'); }}>🔄 Reset</button>
+                        <button className="btn btn-primary" onClick={handleSaveDetectionSettings} disabled={isSaving}>
+                            {isSaving ? <><Loader2 size={16} className="spinner" /> Saving...</> : '💾 Save Settings'}
+                        </button>
+                        <button className="btn btn-outline" onClick={handleResetDetectionSettings} disabled={isSaving}>🔄 Reset</button>
                     </div>
                 </div>
 
@@ -129,7 +196,7 @@ export default function Administration({ api }) {
                                 borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.2s',
                             }}>
                                 <input type="radio" name="mode" value={m} checked={mode === m}
-                                    onChange={() => setMode(m)} style={{ accentColor: 'var(--blue-600)' }} />
+                                    onChange={() => handleModeChange(m)} style={{ accentColor: 'var(--blue-600)' }} />
                                 <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{m}</span>
                             </label>
                         ))}
@@ -163,7 +230,7 @@ export default function Administration({ api }) {
                                 <span style={{ fontSize: '1.3rem' }}>{s.icon}</span>
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>{s.name}</div>
-                                    <div style={{ fontSize: '0.65rem', color: s.severityColor, fontWeight: 600 }}>{s.severity}</div>
+                                    <div style={{ fontSize: '0.65rem', color: s.severityColor, fontWeight: 600 }}>{s.severity.replace('_', ' ')}</div>
                                 </div>
                             </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5 }}>
@@ -175,7 +242,7 @@ export default function Administration({ api }) {
                                 disabled={simLoading === s.id}
                                 onClick={() => triggerScenario(s.id)}
                             >
-                                {simLoading === s.id ? '⏳ Running...' : `▶ Trigger ${s.icon}`}
+                                {simLoading === s.id ? <><Loader2 size={12} className="spinner" /> Running...</> : `▶ Trigger ${s.icon}`}
                             </button>
                         </div>
                     ))}
@@ -199,6 +266,10 @@ export default function Administration({ api }) {
                                 {' '}({(simResult.prediction?.confidence * 100)?.toFixed(1)}% confidence) ·
                                 {' '}Severity: {simResult.decision?.severity?.replace('_', ' ')} ·
                                 {' '}ID: <code>{simResult.decision?.incident_id}</code>
+                                <br />
+                                <span style={{ fontSize: '0.75rem', marginTop: 4, display: 'inline-block' }}>
+                                    <b>Action:</b> {simResult.decision?.action}
+                                </span>
                             </div>
                         )}
                     </div>
@@ -213,15 +284,15 @@ export default function Administration({ api }) {
                     return (
                         <div className="card" key={sid} style={{ padding: 14 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                <input type="checkbox" checked={sections[sid]}
-                                    onChange={(e) => setSections(prev => ({ ...prev, [sid]: e.target.checked }))}
+                                <input type="checkbox" checked={sections[sid] ?? true}
+                                    onChange={(e) => handleSectionChange(sid, e.target.checked)}
                                     style={{ accentColor: 'var(--blue-600)', width: 16, height: 16 }} />
                                 <div>
                                     <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{sid}</div>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>KM {i * 6}–{(i + 1) * 6}</div>
                                 </div>
                             </label>
-                            {!sections[sid] && (
+                            {sections[sid] === false && (
                                 <div style={{ fontSize: '0.68rem', color: 'var(--amber-500)', marginTop: 4 }}>⚠ Monitoring disabled</div>
                             )}
                         </div>
@@ -229,23 +300,6 @@ export default function Administration({ api }) {
                 })}
             </div>
 
-            {/* Security */}
-            <SectionHeader icon="🔒" title="Security Layer" />
-            <div className="card" style={{ marginBottom: 24 }}>
-                <div className="grid-3">
-                    {[
-                        { icon: '🔑', title: 'JWT Authentication', desc: 'Token-based auth via POST /api/auth/login. Tokens expire after 24h. Username: admin / operator' },
-                        { icon: '🔐', title: 'Encrypted Comms', desc: 'In production: all sensor → server communication over TLS 1.3. WebSocket connections use WSS.' },
-                        { icon: '🛡️', title: 'CORS & Rate Limiting', desc: 'CORS configured via flask-cors. Rate limiting (100 req/min) to be added in production deployment.' },
-                    ].map((item, i) => (
-                        <div key={i} style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 'var(--radius-sm)' }}>
-                            <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>{item.icon}</div>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 6 }}>{item.title}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{item.desc}</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

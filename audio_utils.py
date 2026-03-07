@@ -7,9 +7,23 @@ import os
 
 
 def load_audio(filepath, sr=22050, duration=3.0):
-    """Load audio file using librosa."""
-    import librosa
-    signal, _ = librosa.load(filepath, sr=sr, duration=duration)
+    """Load audio file using soundfile for high speed."""
+    import soundfile as sf
+    import numpy as np
+
+    signal, file_sr = sf.read(filepath)
+    
+    # If stereo, mix down to mono
+    if len(signal.shape) > 1:
+        signal = np.mean(signal, axis=1)
+
+    # Ensure fixed duration for standard lengths
+    target_len = int(sr * duration)
+    if len(signal) > target_len:
+        signal = signal[:target_len]
+    elif len(signal) < target_len:
+        signal = np.pad(signal, (0, target_len - len(signal)), mode='constant')
+
     return signal
 
 

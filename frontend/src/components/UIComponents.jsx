@@ -12,10 +12,14 @@ export function KpiCard({ value, label, trend, direction, color = 'blue', toolti
     );
 }
 
-export function AlertCard({ severity, title, detail, subDetail, active }) {
+export function AlertCard({ severity, title, detail, subDetail, active, onClick }) {
     const cssClass = severity?.includes('P1') ? 'p1' : severity?.includes('P2') ? 'p2' : 'p3';
     return (
-        <div className={`alert-card ${cssClass} ${active ? 'active' : ''}`}>
+        <div
+            className={`alert-card ${cssClass} ${active ? 'active' : ''}`}
+            onClick={onClick}
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+        >
             <div className="alert-title">{title}</div>
             <div className="alert-detail">{detail}</div>
             {subDetail && <div className="alert-detail" style={{ marginTop: 4, fontSize: '0.7rem' }}>{subDetail}</div>}

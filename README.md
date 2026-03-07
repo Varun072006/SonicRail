@@ -1,10 +1,10 @@
-# SonicRail
+# SonicRail : AI-Powered Acoustic Monitoring for Real-Time Railway Hazard Detection
 
 **National Track Safety Intelligence System — Production-Grade Edition**
 
 SonicRail transforms existing railway telecom fiber optic infrastructure into an intelligent distributed acoustic sensing (DAS) network. Using AI-powered signal classification, anomaly detection, and real-time visualization, the system detects track hazards like rockfalls, rail fractures, and animal intrusions in under 2 seconds.
 
-![SonicRail Dashboard](frontend/public/vite.svg) {/* Optional: Replace with a real dashboard screenshot */}
+![SonicRail Dashboard](frontend/public/vite.svg)
 
 ---
 
@@ -24,13 +24,34 @@ SonicRail transforms existing railway telecom fiber optic infrastructure into an
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture & Hardware Layer
 
-1. **Signal Processing**: Raw data $\rightarrow$ 31-dim MFCCs & Mel Spectrograms.
-2. **Anomaly Detector**: Isolation Forest flags unknown/ambient noise.
-3. **Classification Engine**: Known events route to the active ML/DL model (RF/SVM/CRNN).
-4. **Decision Engine & Alert Manager**: Triggers alerts based on severity thresholds and logs incidents.
-5. **Frontend Application**: Receives JSON payloads via WebSocket and dynamically updates the UI (Command Center, GeoRail Map, AI Center).
+SonicRail is designed for real-world deployment across hundreds of kilometers of track, utilizing edge AI and hardware-level signal conversion.
+
+### Hardware Layer
+```text
+Railway Track (Vibrations)
+     ↓
+Fiber Optic Cable (Existing Telecom Infrastructure)
+     ↓
+DAS Interrogator (e.g., OptaSense, Fotech)
+     ↓
+Edge AI Device (e.g., NVIDIA Jetson Orin Nano)
+     ↓
+Central Server (SonicRail Core)
+     ↓
+Operator Dashboard & Autonomous Train Control
+```
+
+### Software Pipeline
+1. **Edge AI Processing**: Instead of sending raw audio over the network, Edge nodes process signals locally, reducing latency and saving bandwidth.
+2. **Signal & Sequence Processing**: Raw data $\rightarrow$ Temporal Sequences & Mel Spectrograms.
+3. **Multi-Sensor Fusion**: Combines DAS data with secondary sources (weather, wheel sensors) to increase alert confidence and context.
+4. **Context-Aware Filter**: Suppresses expected vibrations (e.g., scheduled trains passing) to eliminate false alarms.
+5. **Sequence Classification**: Translates acoustic features over time using temporal transformer models to classify hazards.
+6. **Predictive Maintenance Engine**: Calculates track stress accumulation over time to predict fatigue before a failure occurs.
+7. **Fault-Tolerant Alert Manager**: Evaluates thresholds and can trigger Positive Train Control (PTC) fail-safes.
+8. **Frontend Application**: Real-time telemetry via WebSockets and Historical Analytics dashboards.
 
 ---
 

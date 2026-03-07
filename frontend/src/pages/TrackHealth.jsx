@@ -29,20 +29,27 @@ export default function TrackHealth({ api }) {
     return (
         <div>
             {/* Overall Health */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2 }}>
-                    Overall Track Health Index
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+                <div className={`kpi-card ${health.overall >= 80 ? 'green' : health.overall >= 50 ? 'amber' : 'red'}`} style={{ minWidth: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 }}>
+                        Overall Track Health Index
+                    </div>
+                    <div className={`kpi-value ${health.overall >= 80 ? 'green' : health.overall >= 50 ? 'amber' : 'red'}`} style={{ fontSize: '3.5rem' }}>
+                        {health.overall}%
+                    </div>
                 </div>
-                <div style={{ fontSize: '3rem', fontWeight: 800, color: overallColor }}>{health.overall}%</div>
             </div>
 
             {/* Section Gauges */}
             <SectionHeader icon="🔋" title="Section Health Gauges" />
             <div className="grid-4" style={{ marginBottom: 24 }}>
                 {health.sections.map(s => (
-                    <div className="card" key={s.id} style={{ textAlign: 'center', padding: 16 }}>
+                    <div className="card" key={s.id} style={{ textAlign: 'center', padding: '20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <GaugeRing value={s.health} color={getColor(s.health)} size={110} label={s.id} />
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: 12 }}>
+                            Block Section {s.id.replace('BS-', '')}
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
                             KM {s.km_start}–{s.km_end}
                         </div>
                         <span className={`badge ${s.status === 'GOOD' ? 'normal' : s.status === 'CAUTION' ? 'p2' : 'p1'}`}
@@ -57,33 +64,40 @@ export default function TrackHealth({ api }) {
             {heatmap && (
                 <>
                     <SectionHeader icon="📊" title="24-Hour Risk Forecast" />
-                    <div className="card" style={{ marginBottom: 24, overflowX: 'auto' }}>
-                        <table className="data-table" style={{ fontSize: '0.7rem' }}>
-                            <thead>
-                                <tr>
-                                    <th>Section</th>
-                                    {Array.from({ length: 24 }, (_, i) => (
-                                        <th key={i} style={{ padding: '6px 4px', textAlign: 'center' }}>{String(i).padStart(2, '0')}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {heatmap.map(row => (
-                                    <tr key={row.section}>
-                                        <td style={{ fontWeight: 600 }}>{row.section}</td>
-                                        {row.risks.map((risk, i) => {
-                                            const bg = risk > 60 ? 'var(--red-100)' : risk > 30 ? 'var(--amber-100)' : 'var(--green-100)';
-                                            const color = risk > 60 ? 'var(--red-600)' : risk > 30 ? 'var(--amber-600)' : 'var(--green-600)';
-                                            return (
-                                                <td key={i} style={{ background: bg, color, textAlign: 'center', padding: '4px 2px', fontWeight: 600 }}>
-                                                    {Math.round(risk)}
-                                                </td>
-                                            );
-                                        })}
+                    <div className="card" style={{ marginBottom: 24, padding: 0, overflow: 'hidden' }}>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="data-table" style={{ fontSize: '0.75rem', border: 'none', margin: 0 }}>
+                                <thead>
+                                    <tr>
+                                        <th>Section</th>
+                                        {Array.from({ length: 24 }, (_, i) => (
+                                            <th key={i} style={{ padding: '6px 4px', textAlign: 'center' }}>{String(i).padStart(2, '0')}</th>
+                                        ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {heatmap.map(row => (
+                                        <tr key={row.section}>
+                                            <td style={{ fontWeight: 600 }}>{row.section}</td>
+                                            {row.risks.map((risk, i) => {
+                                                const intensity = risk / 100;
+                                                const bg = `rgba(${risk > 60 ? '239, 68, 68' : risk > 30 ? '245, 158, 11' : '34, 197, 94'}, ${0.1 + (intensity * 0.4)})`;
+                                                const color = risk > 60 ? 'var(--red-700)' : risk > 30 ? 'var(--amber-700)' : 'var(--green-700)';
+                                                return (
+                                                    <td key={i} style={{
+                                                        background: bg, color, textAlign: 'center', padding: '8px 4px',
+                                                        fontWeight: 600, borderLeft: '1px solid rgba(255,255,255,0.2)',
+                                                        borderBottom: '1px solid rgba(255,255,255,0.2)'
+                                                    }}>
+                                                        {Math.round(risk)}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </>
             )}
@@ -116,22 +130,25 @@ export default function TrackHealth({ api }) {
                 <div className="card">
                     <div className="card-title">🔧 Maintenance Priority Queue</div>
                     {maintenance.length > 0 ? (
-                        maintenance.slice(0, 6).map((item, i) => (
-                            <div key={i} style={{
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                padding: '10px 12px', borderBottom: '1px solid var(--border-light)',
-                                borderLeft: `3px solid ${getColor(item.health)}`, marginBottom: 4, borderRadius: 4
-                            }}>
-                                <div>
-                                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{item.section}</div>
-                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.issue} → {item.action}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {maintenance.slice(0, 6).map((item, i) => (
+                                <div key={i} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '12px 16px', background: 'var(--bg-secondary)',
+                                    borderLeft: `4px solid ${getColor(item.health)}`, borderRadius: '6px',
+                                    transition: 'transform 0.2s', cursor: 'default'
+                                }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}>
+                                    <div>
+                                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Block Section {item.section.replace('BS-', '')}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>{item.issue} <span style={{ opacity: 0.5 }}>→</span> {item.action}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: getColor(item.health) }}>{item.health}%</div>
+                                        <span className={`badge ${item.urgency === 'CRITICAL' ? 'p1' : 'p2'}`} style={{ fontSize: '0.65rem', padding: '2px 6px' }}>{item.urgency}</span>
+                                    </div>
                                 </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontWeight: 700, color: getColor(item.health) }}>{item.health}%</div>
-                                    <span className={`badge ${item.urgency === 'CRITICAL' ? 'p1' : 'p2'}`}>{item.urgency}</span>
-                                </div>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     ) : (
                         <div style={{ textAlign: 'center', color: 'var(--green-500)', padding: 20 }}>✓ All sections healthy</div>
                     )}
